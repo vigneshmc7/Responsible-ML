@@ -1,0 +1,23 @@
+COMPAS Model Stress Testing and Security Audit
+
+This audit evaluates the COMPAS recidivism model under three adversarial risk pathways: PGD-style evasion, label-flip poisoning, and membership inference. The clean baseline already shows subgroup disparity. The logistic regression model has test AUC = 0.735 and AIR = 1.961, while the gradient-boosted tree has test AUC = 0.718 and AIR = 1.782. AIR is computed as African-American FPR divided by Caucasian FPR, so values outside [0.80, 1.25] are treated as practical disparity flags.
+
+Part A: PGD Evasion
+
+The PGD evasion audit shows that LR and GBT are not equally vulnerable. For LR, increasing epsilon pushes the model toward classifying almost everyone as high risk. At epsilon = 2.0, both African-American and Caucasian FPR reach 1.000, so AIR becomes 1.000 even though the model is operationally unusable. For GBT, the FPR movement is smaller, but AIR remains above 1.25 at every tested epsilon. AIR does not fall below 0.80 for either model; instead, the disparity problem is that AIR remains above the upper parity bound for most attacked settings. The model-selection implication is that clean AUC is not enough for high-stakes deployment. LR is more sensitive in overall decision rate movement, while GBT maintains persistent disparity under the score-based PGD audit.
+
+Part B: Poisoning And PSI Monitoring
+
+The label-flip poisoning loop is the highest-risk finding in the audit. Both African-American-targeted and Caucasian-targeted poisoning preserve AUC within two percentage points of baseline across all tested poison rates. However, AIR remains outside [0.80, 1.25]. Under African-American-targeted poisoning, AIR rises as high as 2.860 at a 30% poison rate while AUC remains approximately 0.731. This is a stealth failure mode because the aggregate metric remains stable while subgroup harm remains severe.
+
+Feature-level PSI monitoring does not detect either poisoning variant. The maximum feature PSI is 0.000 at every poison rate because the attack changes labels, not feature distributions. This means a PSI-only monitoring system would miss the attack even though subgroup fairness metrics show serious harm. The correct governance implication is that input drift monitoring must be paired with label-integrity controls, data provenance, retraining approval, and subgroup fairness monitoring.
+
+Part C: Membership Inference
+
+The shadow-model membership inference attack does not show meaningful leakage in this experiment. MI AUC is 0.501 for LR and 0.502 for GBT, which is approximately random guessing. GBT has a larger generalization gap than LR, but the MI AUC remains near 0.50, so this two-model comparison does not establish that generalization gap predicts membership inference risk in this setting. The confidence-gap histograms also show substantial overlap between training members and test non-members.
+
+The L2 regularization analysis for LR shows little privacy effect. Across C values {0.01, 0.1, 1.0, 10.0}, MI AUC stays near 0.50 and test AUC remains stable around 0.732-0.735. AIR also remains high at approximately 1.95-1.97. This suggests that regularization does not solve the main fairness problem here. It may still be useful as a privacy and overfitting control, but it is not a substitute for subgroup monitoring or data-integrity controls.
+
+Reflection And Mitigation
+
+The single highest-risk finding is label-flip poisoning because it can preserve clean AUC and evade feature PSI while maintaining or worsening racial disparity. The proactive mitigation is strict training-data governance: cryptographic dataset hashing, data provenance, access separation, and label audit sampling before retraining. If effective, this would prevent the attack condition that produced AIR as high as 2.860 while leaving AUC nearly unchanged. The reactive mitigation is an AIR/FPR monitoring trigger with rollback review whenever AIR falls outside [0.80, 1.25] or changes sharply between retraining cycles. This reactive control would have flagged every poisoned run in this experiment, while PSI did not flag any. These mitigations may add operational overhead and delay model updates, but they reduce the risk of undetected disparate impact in a criminal justice setting.
