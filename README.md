@@ -1,7 +1,7 @@
 # Responsible-ML
 MSBA Responsible Machine Learning Course Assignments
 
-# DNSC 6330 Assignments
+## DNSC 6330 Assignments
 
 This repository contains my Python implementations of the COMPAS analysis assignments completed for DNSC 6330.
 
